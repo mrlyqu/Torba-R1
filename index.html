@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lista kontrolna PSP R1</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700&family=Inter:wght@400;500;600&display=swap">
+<style>
+/* Layout: sticky summary bar with menu over two checklists (opatrunkowy, tlenowy); rows = check, quantity, expiry date; edit mode swaps rows for form fields. */
+:root {
+  --bg: #f3f4f6;
+  --surface: #ffffff;
+  --fg: #1a1f24;
+  --muted: #5a646e;
+  --line: #d8dde2;
+  --accent: #23405f;
+  --accent-soft: #e4ebf3;
+  --ok: #2c7a4b;
+  --warn: #9a5b00;
+  --warn-soft: #fbefd9;
+  --bad: #b3261e;
+  --bad-soft: #fbe6e4;
+  --font-display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161a; --surface: #1b2126; --fg: #e8ecef; --muted: #98a3ad; --line: #2c353d;
+    --accent: #9cbde0; --accent-soft: #22303f; --ok: #6fcf97; --warn: #e2a84b; --warn-soft: #382c14;
+    --bad: #f0857d; --bad-soft: #3a1f1d; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161a; --surface: #1b2126; --fg: #e8ecef; --muted: #98a3ad; --line: #2c353d;
+  --accent: #9cbde0; --accent-soft: #22303f; --ok: #6fcf97; --warn: #e2a84b; --warn-soft: #382c14;
+  --bad: #f0857d; --bad-soft: #3a1f1d; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.45;
+  padding-block: 0 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
+.wrap { max-width: 860px; margin: 0 auto; }
+header.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9; background: var(--surface);
+  margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))) calc(-1 * max(16px, env(safe-area-inset-right, 0px)));
+  padding: 12px max(16px, env(safe-area-inset-right, 0px)) 12px max(16px, env(safe-area-inset-left, 0px));
+  border-bottom: 1px solid var(--line);
+}
+.top-in { max-width: 860px; margin: 0 auto; display: grid; gap: 10px; }
+.titlerow { display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+h1 { font-family: var(--font-display); font-weight: 700; font-size: 26px; letter-spacing: .01em; margin: 0; text-wrap: balance; min-width: 0; }
+h1 span { color: var(--bad); }
+.rt { position: relative; display: flex; align-items: center; gap: 10px; flex: none; }
+.total { font-family: var(--font-display); font-weight: 600; font-size: 18px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.menubtn { width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); font-size: 22px; line-height: 1; cursor: pointer; display: grid; place-items: center; }
+.menubtn:hover, .menubtn[aria-expanded="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.menu { position: absolute; right: 0; top: calc(100% + 6px); min-width: 230px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 4px; z-index: 20; box-shadow: 0 8px 24px rgba(0,0,0,.18); }
+.menu[hidden] { display: none; }
+.menu button { display: block; width: 100%; text-align: left; font: inherit; font-size: 14px; padding: 10px 12px; border: 0; border-radius: 7px; background: transparent; color: var(--fg); cursor: pointer; }
+.menu button:hover { background: var(--accent-soft); }
+.menu button[data-armed="1"] { background: var(--bad); color: #fff; }
+.menu hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+.bar { height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--ok); transition: width .25s ease; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
+.pill { font-size: 13px; font-weight: 500; padding: 3px 10px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); font-variant-numeric: tabular-nums; }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--fg); font: inherit; font-size: 13px; padding: 6px 12px; cursor: pointer; }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+.btn { font: inherit; font-size: 13px; font-weight: 500; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+.btn.small { padding: 5px 10px; }
+.btn[data-armed="1"] { background: var(--bad); border-color: var(--bad); color: #fff; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.grow { flex: 1; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.checkdate { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.checkdate input { font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); }
+.today { font-variant-numeric: tabular-nums; }
+main { padding-top: 20px; display: grid; gap: 28px; }
+.editbar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; padding: 10px 14px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-size: 14px; }
+.editbar[hidden] { display: none; }
+section h2 { font-family: var(--font-display); font-weight: 700; font-size: 21px; margin: 0 0 2px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; align-items: baseline; }
+section h2 small { font-weight: 600; font-size: 16px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sub { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+ul.list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+li.grp { padding: 8px 14px; background: var(--accent-soft); color: var(--accent); font-family: var(--font-display); font-weight: 600; font-size: 15px; letter-spacing: .02em; border-top: 1px solid var(--line); }
+li.grp:first-child { border-top: 0; }
+li.grp.edit { display: flex; gap: 8px; align-items: center; }
+li.row {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto auto; grid-template-areas: "name qty exp";
+  gap: 6px 12px; align-items: center; padding: 9px 14px; border-top: 1px solid var(--line);
+}
+li.row.sub-item { padding-left: 30px; }
+li.row[hidden], li.grp[hidden] { display: none; }
+li.row.edit, li.addform { display: block; }
+.ed { display: grid; gap: 6px; }
+.ed-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.txt { font: inherit; font-size: 14px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); width: 100%; min-width: 0; }
+.txt.err { border-color: var(--bad); background: var(--bad-soft); }
+.qtyin { width: 120px; }
+select.txt { width: auto; max-width: 100%; }
+.chkl { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+li.addform { padding: 12px 14px; border-top: 2px solid var(--line); background: var(--bg); }
+li.addform strong { font-family: var(--font-display); font-size: 15px; }
+.name { grid-area: name; display: flex; gap: 12px; align-items: flex-start; cursor: pointer; min-width: 0; }
+.name input { width: 22px; height: 22px; margin: 1px 0 0; flex: none; accent-color: var(--ok); cursor: pointer; }
+.name span { min-width: 0; overflow-wrap: anywhere; }
+.name em { display: block; font-style: normal; font-size: 12.5px; color: var(--muted); }
+li.row.done .name span > b { font-weight: 400; color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); }
+li.row b { font-weight: 500; }
+.qty { grid-area: qty; font-family: var(--font-display); font-weight: 600; font-size: 16px; min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+.exp { grid-area: exp; font: inherit; font-size: 13px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); width: 138px; }
+.exp-none { grid-area: exp; width: 138px; }
+li.row.soon .exp { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+li.row.expired .exp { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.empty { padding: 18px 14px; color: var(--muted); font-size: 14px; }
+.panel { display: none; scroll-margin-top: 180px; }
+.panel.on { display: block; }
+.panel textarea { width: 100%; min-height: 140px; font: inherit; font-size: 13px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); }
+.panel .row-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; }
+.status { font-size: 13px; color: var(--muted); }
+footer { margin-top: 28px; color: var(--muted); font-size: 12.5px; max-width: 70ch; }
+@media (max-width: 560px) {
+  h1 { font-size: 22px; }
+  li.row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name name" "qty exp"; }
+  li.row .qty { text-align: left; }
+  .exp, .exp-none { width: 150px; justify-self: end; }
+  li.row.sub-item { padding-left: 22px; }
+  li.row.edit, li.row.edit.sub-item { padding-left: 14px; }
+}
+@media (prefers-reduced-motion: reduce) { .bar > i { transition: none; } }
+[hidden]{display:none!important}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light dark}
+body{margin:0}
+.radios{display:flex;flex-wrap:wrap;gap:6px 18px;margin:0 0 8px;font-size:14px}.radios label{display:inline-flex;gap:6px;align-items:center}
+.panel details{margin-top:12px}.panel summary{cursor:pointer;color:var(--accent);font-size:14px}.panel details .row-btns{margin-top:8px}
+.panel p.status{margin:8px 0 0;min-height:1.2em}
+.panel ol.steps{margin:10px 0 0;padding-left:20px;font-size:14px;display:grid;gap:6px}
+.panel pre.code{margin:8px 0;padding:10px;background:var(--surface);border:1px solid var(--line);border-radius:8px;font-size:13px;overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="top-in">
+      <div class="titlerow">
+        <h1>Zestaw <span>PSP R1</span> · lista kontrolna</h1>
+        <div class="rt">
+          <div class="total" id="total" aria-live="polite">0 / 0</div>
+          <button type="button" class="menubtn" id="menubtn" aria-label="Menu" aria-haspopup="true" aria-expanded="false">⋮</button>
+          <div class="menu" id="menu" role="menu" hidden>
+            <button type="button" role="menuitem" data-m="edit" id="m-edit">Edytuj listy</button>
+            <button type="button" role="menuitem" data-m="sync">Synchronizacja (chmura)</button>
+            <button type="button" role="menuitem" data-m="backup">Eksport i import</button>
+            <hr>
+            <button type="button" role="menuitem" data-m="restore" id="m-restore">Przywróć standard R1</button>
+          </div>
+        </div>
+      </div>
+      <div class="bar" aria-hidden="true"><i id="barfill"></i></div>
+      <div class="stats">
+        <span class="pill" id="p-missing">Braki: 0</span>
+        <span class="pill bad" id="p-exp">Przeterminowane: 0</span>
+        <span class="pill warn" id="p-soon">Do 30 dni: 0</span>
+        <span class="pill" id="p-sync" hidden></span>
+      </div>
+      <div class="tools">
+        <div class="seg" role="group" aria-label="Filtr listy">
+          <button type="button" data-f="all" aria-pressed="true">Wszystko</button>
+          <button type="button" data-f="missing" aria-pressed="false">Braki</button>
+          <button type="button" data-f="dates" aria-pressed="false">Terminy</button>
+        </div>
+        <button type="button" class="btn" id="copy">Kopiuj braki</button>
+        <button type="button" class="btn" id="reset">Wyczyść zaznaczenia</button>
+        <span class="grow"></span>
+        <div class="checkdate">
+          <span>Dziś: <span class="today" id="today"></span></span>
+          <label for="checkdate">Kontrola z dnia <input type="date" id="checkdate"></label>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="editbar" id="editbar" hidden>
+      <span>Tryb edycji. Zmiany zapisują się od razu.</span>
+      <button type="button" class="btn primary" id="editdone">Gotowe</button>
+    </div>
+    <section id="sec-a" aria-labelledby="ha">
+      <h2 id="ha">Plecak medyczny opatrunkowy <small id="cnt-a"></small></h2>
+      <p class="sub">Moduł 1. Z materiału nienasiąkliwego, zmywalnego; dopuszczalny jeden plecak na opatrunki i tlen.</p>
+      <ul class="list" id="list-a"></ul>
+    </section>
+    <section id="sec-o" aria-labelledby="ho">
+      <h2 id="ho">Plecak do tlenoterapii <small id="cnt-o"></small></h2>
+      <p class="sub">Moduł 2, razem z unieruchomieniem (szyny, deska, nosze podbierakowe).</p>
+      <ul class="list" id="list-o"></ul>
+    </section>
+    <section class="panel" id="missing-box">
+      <h2>Lista braków</h2>
+      <p class="sub">Schowek nie zadziałał. Zaznacz tekst i skopiuj ręcznie.</p>
+      <textarea id="missing-text" readonly></textarea>
+    </section>
+    <section class="panel" id="sync-box" aria-labelledby="hs">
+      <h2 id="hs">Synchronizacja z chmurą</h2>
+      <p class="sub">Lista, zaznaczenia i daty zapisują się w darmowej bazie Firebase i wczytują się na każdym urządzeniu, na którym wpiszesz ten sam adres. Strona sprawdza chmurę przy otwarciu, po powrocie do karty i po każdej zmianie. Przy równoczesnej edycji na dwóch urządzeniach wygrywa późniejsza zmiana.</p>
+      <div class="ed">
+        <label class="chkl" for="sync-url">Adres bazy</label>
+        <input class="txt" id="sync-url" type="url" inputmode="url" autocomplete="off" placeholder="https://nazwa-default-rtdb.europe-west1.firebasedatabase.app">
+        <label class="chkl" for="sync-name">Nazwa zestawu (te same dane na wszystkich urządzeniach; zmień, żeby prowadzić kilka osobnych zestawów)</label>
+        <input class="txt qtyin" id="sync-name" autocomplete="off" placeholder="r1">
+      </div>
+      <div class="row-btns">
+        <button type="button" class="btn primary" id="sync-connect">Połącz</button>
+        <button type="button" class="btn" id="sync-now">Synchronizuj teraz</button>
+        <button type="button" class="btn" id="sync-off">Rozłącz</button>
+        <button type="button" class="btn" id="sync-close">Zamknij</button>
+      </div>
+      <div class="row-btns" id="sync-choice" hidden>
+        <button type="button" class="btn primary" id="sync-pull">Użyj danych z chmury</button>
+        <button type="button" class="btn" id="sync-push">Wyślij dane z tego urządzenia</button>
+      </div>
+      <p class="status" id="sync-status" aria-live="polite"></p>
+      <details>
+        <summary>Jak założyć bazę (raz, bezpłatnie)</summary>
+        <ol class="steps">
+          <li>Wejdź na console.firebase.google.com i zaloguj się kontem Google. Kliknij „Create a project”, wpisz dowolną nazwę (Analytics możesz wyłączyć).</li>
+          <li>W menu po lewej wybierz Build, potem Realtime Database, potem „Create Database”. Wybierz lokalizację (np. Belgia, europe-west1) i tryb testowy.</li>
+          <li>Otwórz zakładkę Rules, zastąp zawartość poniższym tekstem i kliknij Publish. Tryb testowy wygasa po 30 dniach, dlatego reguły trzeba ustawić na stałe.</li>
+          <li>W zakładce Data skopiuj adres bazy (zaczyna się od https://, kończy na firebasedatabase.app lub firebaseio.com) i wklej go wyżej.</li>
+        </ol>
+        <pre class="code">{
+  "rules": { ".read": true, ".write": true }
+}</pre>
+        <p class="sub">Takie reguły oznaczają, że każdy, kto zna adres bazy, może odczytać i zmienić dane. Adres nie jest nigdzie publikowany, ale traktuj go jak hasło i nie wpisuj do bazy niczego wrażliwego.</p>
+      </details>
+    </section>
+    <section class="panel" id="backup-box" aria-labelledby="hb">
+      <h2 id="hb">Eksport i import</h2>
+      <p class="sub">Dane są zapisane tylko w tej przeglądarce. Wyeksportuj je do pliku, zachowaj albo wyślij komuś. Taki plik wczytasz na dowolnym urządzeniu przyciskiem „Importuj z pliku”.</p>
+      <div class="radios" role="radiogroup" aria-label="Co eksportować">
+        <label><input type="radio" name="exmode" value="all" checked> Całość (lista, zaznaczenia, daty)</label>
+        <label><input type="radio" name="exmode" value="list"> Tylko lista pozycji (do przekazania innym)</label>
+      </div>
+      <div class="row-btns">
+        <button type="button" class="btn primary" id="exp-file">Pobierz plik</button>
+        <button type="button" class="btn" id="share-file" hidden>Udostępnij plik…</button>
+      </div>
+      <div class="row-btns">
+        <button type="button" class="btn primary" id="imp-btn">Importuj z pliku</button>
+        <input type="file" id="imp-file" accept=".json,application/json,text/plain" hidden>
+        <button type="button" class="btn" id="imp-confirm" hidden>Tak, wczytaj i zastąp dane</button>
+      </div>
+      <p class="status" id="backup-status" aria-live="polite"></p>
+      <details>
+        <summary>Albo skopiuj i wklej jako tekst</summary>
+        <textarea id="backup-text" spellcheck="false"></textarea>
+        <div class="row-btns">
+          <button type="button" class="btn" id="backup-copy">Kopiuj</button>
+          <button type="button" class="btn" id="backup-load">Wczytaj z pola</button>
+        </div>
+      </details>
+      <div class="row-btns"><button type="button" class="btn" id="backup-close">Zamknij</button></div>
+    </section>
+  </main>
+
+  <footer>
+    Pozycje i ilości domyślnie wg „Ramowego standardu wyposażenia zestawu ratownictwa medycznego R1” (załącznik nr 3, wytyczne KSRG, wersja 2026). Standard dopuszcza zużycie sprzętu posiadanego do końca jego ważności. Terminy liczą się względem dzisiejszej daty przy każdym otwarciu strony. Zaznaczenia, daty i własne zmiany listy zapisują się tylko w tej przeglądarce, dlatego warto od czasu do czasu zrobić eksport do pliku z menu. Sprawdź, czy Twoja jednostka nie ma własnego, rozszerzonego wykazu.
+  </footer>
+</div>
+
+<script>
+(function () {
+  // name, qty, e = ma datę ważności, hint, sub = pozycja wcięta pod grupą
+  var DEFAULTS = {
+    a: [
+      { id: "a0", name: "Plecak medyczny opatrunkowy, modułowy", qty: "1 szt." },
+      { id: "a1", name: "Pas do stabilizacji miednicy", qty: "1 szt." },
+      { g: "Kołnierze szyjne jednorazowe, wodoodporne, regulowane (razem 2 szt.)" },
+      { id: "a2a", name: "Kołnierz szyjny dla dorosłych, jednoczęściowy", qty: "1 szt.", e: 1, sub: 1 },
+      { id: "a2b", name: "Kołnierz szyjny dziecięcy", qty: "1 szt.", e: 1, sub: 1 },
+      { g: "Zestaw opatrunków" },
+      { id: "a3a", name: "Opatrunek taktyczny indywidualny, pakowany próżniowo", qty: "2 szt.", e: 1, sub: 1 },
+      { id: "a3b", name: "Opatrunek hemostatyczny", hint: "szerokość powyżej 7,5 cm, długość powyżej 150 cm", qty: "1 szt.", e: 1, sub: 1 },
+      { id: "a3c", name: "Kompresy gazowe jałowe 9 × 9 cm", qty: "10 szt.", e: 1, sub: 1 },
+      { id: "a3d", name: "Gaza opatrunkowa jałowa 1 m²", qty: "5 szt.", e: 1, sub: 1 },
+      { id: "a3e", name: "Gaza opatrunkowa jałowa ½ m²", qty: "5 szt.", e: 1, sub: 1 },
+      { id: "a3f", name: "Opaska opatrunkowa dziana, szer. 10 cm", qty: "8 szt.", e: 1, sub: 1 },
+      { id: "a3g", name: "Chusta trójkątna tekstylna", qty: "4 szt.", sub: 1 },
+      { id: "a3h", name: "Bandaż elastyczny, szer. 10 cm", qty: "3 szt.", e: 1, sub: 1 },
+      { id: "a3i", name: "Bandaż elastyczny, szer. 12 cm", qty: "3 szt.", e: 1, sub: 1 },
+      { id: "a3j", name: "Elastyczna siatka opatrunkowa nr 6", qty: "1 szt.", sub: 1 },
+      { id: "a3k", name: "Przylepiec z opatrunkiem 6 cm × 1 m", qty: "1 szt.", e: 1, sub: 1 },
+      { id: "a3l", name: "Przylepiec bez opatrunku 5 cm × 5 m", qty: "2 szt.", e: 1, sub: 1 },
+      { id: "a3m", name: "Żel schładzający, min. 120 ml", qty: "2 szt.", e: 1, sub: 1 },
+      { id: "a3n", name: "Opatrunek hydrożelowy schładzający na twarz", hint: "stały, stabilny, nieprzywierający", qty: "2 szt.", e: 1, sub: 1 },
+      { id: "a3o", name: "Opatrunek hydrożelowy schładzający, powierzchnia 4000 cm²", hint: "stały, stabilny, nieprzywierający", qty: "4 szt.", e: 1, sub: 1 },
+      { id: "a3p", name: "Opatrunek wentylowy do rany ssącej klatki piersiowej", hint: "z możliwością ułożenia na plecach", qty: "2 szt.", e: 1, sub: 1 },
+      { g: "Pozostałe wyposażenie" },
+      { id: "a4", name: "Opaska zaciskowa (staza taktyczna)", qty: "2 szt." },
+      { id: "a5", name: "Aparat do płukania oka z bocznym odpływem", hint: "150 ml (± 50)", qty: "1 szt." },
+      { id: "a6", name: "Nożyczki ratownicze atraumatyczne", hint: "długość min. 16 cm", qty: "1 szt." },
+      { id: "a7", name: "Okulary ochronne", qty: "3 szt." },
+      { id: "a8", name: "Maska ochronna dla ratownika", hint: "min. FFP2 lub FFP3", qty: "3 szt.", e: 1 },
+      { id: "a9", name: "Rękawiczki ochronne nitrylowe", hint: "rozmiary wg potrzeb", qty: "10 szt.", e: 1 },
+      { id: "a10", name: "Sól fizjologiczna 0,9% NaCl, pojemnik plastikowy 100 ml", qty: "2 szt.", e: 1 },
+      { id: "a11", name: "Folia izotermiczna", qty: "5 szt." },
+      { id: "a12", name: "Worek na zwłoki", qty: "2 szt." },
+      { id: "a13", name: "Worek plastikowy z zamknięciem na amputowane części ciała", qty: "1 szt." },
+      { id: "a14", name: "Płyn do dezynfekcji rąk", hint: "min. 250 ml", qty: "1 szt.", e: 1 },
+      { id: "a15", name: "Worek plastikowy z zamknięciem na odpady medyczne, czerwony", qty: "1 szt." }
+    ],
+    o: [
+      { id: "o0", name: "Plecak do tlenoterapii, modułowy", qty: "1 szt." },
+      { g: "Drogi oddechowe i wentylacja" },
+      { id: "o1", name: "Rurki ustno-gardłowe jednorazowe", hint: "minimum 6 szt.", qty: "1 zestaw", e: 1 },
+      { id: "o2", name: "Jednorazowe żelowe maski krtaniowe lub rurki krtaniowe", hint: "różne rozmiary", qty: "1 zestaw", e: 1 },
+      { id: "o3", name: "Pulsoksymetr", hint: "noworodki, dzieci, dorośli; opcjonalnie EtCO2", qty: "1 szt." },
+      { id: "o4", name: "Ssak elektryczny lub mechaniczny z kompletem cewników", hint: "cewniki dla noworodków, dzieci, dorosłych", qty: "1 szt.", e: 1 },
+      { id: "o5", name: "Worek samorozprężalny dla dorosłych z rezerwuarem tlenu", hint: "jednorazowy, maska w 2 rozmiarach, przewód tlenowy max 2,5 m", qty: "1 szt.", e: 1 },
+      { id: "o6", name: "Worek samorozprężalny dla dzieci z rezerwuarem tlenu", hint: "jednorazowy, maska dziecięca w 2 rozmiarach, przewód tlenowy max 2,5 m", qty: "1 szt.", e: 1 },
+      { id: "o7", name: "Filtr przeciwbakteryjny-przeciwwirusowy dla dorosłych", qty: "1 szt.", e: 1 },
+      { id: "o8", name: "Filtr przeciwbakteryjny-przeciwwirusowy dla dzieci", qty: "1 szt.", e: 1 },
+      { g: "Tlenoterapia" },
+      { id: "o9", name: "Butla tlenowa z reduktorem i przepływomierzem", hint: "min. 300 l przy min. 150 bar, szybkozłącze AGA, praca w pionie; sprawdź ciśnienie", qty: "1 szt." },
+      { id: "o10", name: "Przewód tlenowy o przekroju gwiazdkowym, 10 m", qty: "1 szt." },
+      { id: "o11a", name: "Cewnik do podawania tlenu przez nos, dorośli", qty: "1 szt.", e: 1, sub: 1 },
+      { id: "o11b", name: "Cewnik do podawania tlenu przez nos, dzieci", qty: "1 szt.", e: 1, sub: 1 },
+      { id: "o12", name: "Zestaw do tlenoterapii biernej: 2 duże i 1 mała maska z rezerwuarem i przewodami", hint: "min. 95% stężenia tlenu przy przepływie max 15 l/min", qty: "3 szt.", e: 1 },
+      { g: "Unieruchamianie i transport" },
+      { id: "o13", name: "Szyny typu Kramer w jednorazowym rękawie ochronnym, komplet w torbie", hint: "lub komplet szyn typu splint w różnych rozmiarach (4 szt.)", qty: "1 zestaw" },
+      { id: "o14", name: "Nosze typu deska z pasami i stabilizatorem głowy", hint: "min. 3 komplety pasów, klocki do unieruchomienia głowy i kręgosłupa szyjnego", qty: "1 komplet" },
+      { id: "o15", name: "Nosze podbierakowe", qty: "1 szt." }
+    ]
+  };
+
+  var KEY = "psp-r1-lista-v1";
+  var WARN_DAYS = 30;
+  var $ = function (id) { return document.getElementById(id); };
+  function clone(x) { return JSON.parse(JSON.stringify(x)); }
+  var uidN = 0;
+  function uid() { uidN++; return "u" + Date.now().toString(36) + uidN; }
+  function obj(x) { return x && typeof x === "object" && !Array.isArray(x) ? x : {}; }
+  function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+
+  // Zwraca oczyszczone listy albo null, gdy dane nie wyglądają na listy.
+  function validLists(l) {
+    if (!l || !Array.isArray(l.a) || !Array.isArray(l.o)) return null;
+    var out = { a: [], o: [] };
+    ["a", "o"].forEach(function (k) {
+      l[k].forEach(function (it) {
+        if (!it || typeof it !== "object") return;
+        if (typeof it.g === "string") { out[k].push({ g: it.g.slice(0, 120) }); }
+        else if (typeof it.id === "string" && typeof it.name === "string") {
+          var n = { id: it.id.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 40) || uid(), name: it.name.slice(0, 200), qty: String(it.qty || "").slice(0, 40) };
+          if (it.hint) n.hint = String(it.hint).slice(0, 200);
+          if (it.e) n.e = 1;
+          if (it.sub) n.sub = 1;
+          out[k].push(n);
+        }
+      });
+    });
+    return out;
+  }
+
+  var state = { checked: {}, exp: {}, date: "", lists: null, updatedAt: 0 };
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) {
+      var p = JSON.parse(raw);
+      state.checked = obj(p.checked); state.exp = obj(p.exp); state.date = typeof p.date === "string" ? p.date : "";
+      state.lists = validLists(p.lists); state.updatedAt = Number(p.updatedAt) || 0;
+    }
+  } catch (e) {}
+  var DATA = state.lists || clone(DEFAULTS);
+  function markCustom() { state.lists = DATA; }
+  function save(keep) {
+    if (!keep) state.updatedAt = Date.now();
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    if (!keep) schedulePush();
+  }
+
+  var filter = "all", editing = false, lastDay = "";
+
+  function today() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function daysLeft(s, tdy) {
+    if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+    var n = Math.round((new Date(s + "T00:00:00") - new Date(tdy + "T00:00:00")) / 86400000);
+    return isNaN(n) ? null : n;
+  }
+  function expStatus(id, tdy) { var d = daysLeft(state.exp[id], tdy); if (d === null) return ""; if (d < 0) return "expired"; if (d <= WARN_DAYS) return "soon"; return ""; }
+  function plDate(s) { return s.slice(8, 10) + "." + s.slice(5, 7) + "." + s.slice(0, 4); }
+
+  function groupOptions(key) {
+    var o = '<option value="-1">Na końcu listy</option>';
+    DATA[key].forEach(function (it, i) { if (it.g !== undefined) o += '<option value="' + i + '">W grupie: ' + esc(it.g) + "</option>"; });
+    return o;
+  }
+
+  function build(key) {
+    var ul = $("list-" + key), html = "";
+    DATA[key].forEach(function (it, idx) {
+      if (it.g !== undefined) {
+        html += editing
+          ? '<li class="grp edit" data-idx="' + idx + '"><input class="txt g-name" aria-label="Nazwa grupy" value="' + esc(it.g) + '"><button type="button" class="btn small" data-act="del-group">Usuń grupę</button></li>'
+          : '<li class="grp">' + esc(it.g) + "</li>";
+        return;
+      }
+      if (editing) {
+        html += '<li class="row edit" data-id="' + it.id + '" data-idx="' + idx + '"><div class="ed">' +
+          '<input class="txt e-name" aria-label="Nazwa" value="' + esc(it.name) + '">' +
+          '<input class="txt e-hint" aria-label="Uwagi" placeholder="Uwagi (opcjonalnie)" value="' + esc(it.hint || "") + '">' +
+          '<div class="ed-line"><input class="txt qtyin e-qty" aria-label="Ilość" value="' + esc(it.qty) + '">' +
+          '<label class="chkl"><input type="checkbox" class="e-exp"' + (it.e ? " checked" : "") + '> termin ważności</label>' +
+          '<button type="button" class="btn small" data-act="del-item">Usuń</button></div></div></li>';
+        return;
+      }
+      html += '<li class="row' + (it.sub ? " sub-item" : "") + '" data-id="' + it.id + '">' +
+        '<label class="name" for="c-' + it.id + '"><input type="checkbox" id="c-' + it.id + '"><span><b>' + esc(it.name) + "</b>" +
+        (it.hint ? "<em>" + esc(it.hint) + "</em>" : "") + "</span></label>" +
+        '<span class="qty">' + esc(it.qty) + "</span>" +
+        (it.e ? '<input type="date" class="exp" id="e-' + it.id + '" aria-label="Data ważności: ' + esc(it.name) + '">' : '<span class="exp-none"></span>') +
+        "</li>";
+    });
+    if (editing) {
+      html += '<li class="addform" data-key="' + key + '"><div class="ed"><strong>Dodaj pozycję</strong>' +
+        '<input class="txt" id="add-name-' + key + '" placeholder="Nazwa, np. Opatrunek hemostatyczny">' +
+        '<input class="txt" id="add-hint-' + key + '" placeholder="Uwagi (opcjonalnie)">' +
+        '<div class="ed-line"><input class="txt qtyin" id="add-qty-' + key + '" placeholder="Ilość, np. 2 szt.">' +
+        '<select class="txt" id="add-grp-' + key + '" aria-label="Grupa">' + groupOptions(key) + "</select>" +
+        '<label class="chkl"><input type="checkbox" id="add-exp-' + key + '"> termin ważności</label>' +
+        '<button type="button" class="btn primary" data-act="add">Dodaj</button></div></div></li>';
+    }
+    ul.innerHTML = html + '<li class="empty" hidden>Brak pozycji do pokazania w tym filtrze.</li>';
+  }
+  function buildAll() { build("a"); build("o"); }
+
+  function render() {
+    var tdy = today(); lastDay = tdy;
+    var total = 0, done = 0, expired = 0, soon = 0;
+    ["a", "o"].forEach(function (key) {
+      var n = 0, d = 0;
+      DATA[key].forEach(function (it) {
+        if (it.g !== undefined) return;
+        n++; if (state.checked[it.id]) d++;
+        var st = expStatus(it.id, tdy);
+        if (st === "expired") expired++; else if (st === "soon") soon++;
+      });
+      total += n; done += d;
+      $("cnt-" + key).textContent = d + " / " + n;
+      if (editing) return;
+      var ul = $("list-" + key), shown = 0, lastGrp = null, grpShown = false;
+      Array.prototype.forEach.call(ul.children, function (li) {
+        if (li.classList.contains("grp")) { if (lastGrp) lastGrp.hidden = !grpShown; lastGrp = li; grpShown = false; return; }
+        if (li.classList.contains("empty")) return;
+        var id = li.getAttribute("data-id"), chk = !!state.checked[id], st = expStatus(id, tdy);
+        li.classList.toggle("done", chk);
+        li.classList.toggle("expired", st === "expired");
+        li.classList.toggle("soon", st === "soon");
+        var cb = li.querySelector('input[type="checkbox"]'); if (cb.checked !== chk) cb.checked = chk;
+        var ex = li.querySelector(".exp"); if (ex && ex.value !== (state.exp[id] || "")) ex.value = state.exp[id] || "";
+        var show = filter === "all" || (filter === "missing" && !chk) || (filter === "dates" && st !== "");
+        li.hidden = !show; if (show) { shown++; grpShown = true; }
+      });
+      if (lastGrp) lastGrp.hidden = !grpShown;
+      ul.querySelector(".empty").hidden = shown !== 0;
+    });
+    $("total").textContent = done + " / " + total;
+    $("barfill").style.width = (total ? (done / total * 100) : 0) + "%";
+    $("p-missing").textContent = "Braki: " + (total - done);
+    $("p-exp").textContent = "Przeterminowane: " + expired;
+    $("p-soon").textContent = "Do " + WARN_DAYS + " dni: " + soon;
+    $("today").textContent = plDate(tdy);
+    var cd = $("checkdate"); if (cd.value !== state.date) cd.value = state.date;
+  }
+
+  // Dwustopniowe potwierdzenie na przycisku (okna dialogowe są w artefakcie wyłączone).
+  function armed(btn, label, doIt) {
+    if (btn.getAttribute("data-armed") !== "1") {
+      btn.setAttribute("data-armed", "1"); btn.setAttribute("data-orig", btn.textContent); btn.textContent = label;
+      setTimeout(function () { if (btn.isConnected && btn.getAttribute("data-armed") === "1") { btn.removeAttribute("data-armed"); btn.textContent = btn.getAttribute("data-orig"); } }, 4000);
+      return;
+    }
+    btn.removeAttribute("data-armed"); btn.textContent = btn.getAttribute("data-orig");
+    doIt();
+  }
+
+  function locate(el) {
+    var li = el.closest("li"), ul = li && li.closest("ul");
+    if (!li || !ul) return null;
+    var key = ul.id.slice(5), idx = parseInt(li.getAttribute("data-idx"), 10);
+    if (isNaN(idx) || !DATA[key] || !DATA[key][idx]) return null;
+    return { key: key, idx: idx, item: DATA[key][idx] };
+  }
+
+  document.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.id === "checkdate") { state.date = t.value; save(); return; }
+    if (editing) {
+      var loc = locate(t); if (!loc) return;
+      var it = loc.item;
+      if (t.classList.contains("g-name")) { it.g = t.value.trim().slice(0, 120); var sel = $("add-grp-" + loc.key); if (sel) { var cur = sel.value; sel.innerHTML = groupOptions(loc.key); sel.value = cur; } }
+      else if (t.classList.contains("e-name")) { var v = t.value.trim(); if (v) it.name = v.slice(0, 200); else t.value = it.name; }
+      else if (t.classList.contains("e-hint")) { var h = t.value.trim().slice(0, 200); if (h) it.hint = h; else delete it.hint; }
+      else if (t.classList.contains("e-qty")) { it.qty = t.value.trim().slice(0, 40); }
+      else if (t.classList.contains("e-exp")) { if (t.checked) it.e = 1; else { delete it.e; delete state.exp[it.id]; } }
+      else return;
+      markCustom(); save(); render(); return;
+    }
+    var row = t.closest && t.closest("li.row"); if (!row) return;
+    var id = row.getAttribute("data-id");
+    if (t.type === "checkbox") { if (t.checked) state.checked[id] = true; else delete state.checked[id]; }
+    else if (t.classList.contains("exp")) { if (t.value) state.exp[id] = t.value; else delete state.exp[id]; }
+    save(); render();
+  });
+
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest && e.target.closest("[data-act]"); if (!b) return;
+    var act = b.getAttribute("data-act");
+    if (act === "del-item") {
+      armed(b, "Na pewno?", function () {
+        var loc = locate(b); if (!loc) return;
+        DATA[loc.key].splice(loc.idx, 1); delete state.checked[loc.item.id]; delete state.exp[loc.item.id];
+        markCustom(); save(); build(loc.key); render();
+      });
+    } else if (act === "del-group") {
+      armed(b, "Na pewno?", function () {
+        var loc = locate(b); if (!loc) return;
+        DATA[loc.key].splice(loc.idx, 1); markCustom(); save(); build(loc.key); render();
+      });
+    } else if (act === "add") {
+      var key = b.closest("li.addform").getAttribute("data-key"), arr = DATA[key];
+      var nameEl = $("add-name-" + key), name = nameEl.value.trim();
+      if (!name) { nameEl.classList.add("err"); nameEl.focus(); return; }
+      var item = { id: uid(), name: name.slice(0, 200), qty: ($("add-qty-" + key).value.trim() || "1 szt.").slice(0, 40) };
+      var hint = $("add-hint-" + key).value.trim(); if (hint) item.hint = hint.slice(0, 200);
+      if ($("add-exp-" + key).checked) item.e = 1;
+      var g = parseInt($("add-grp-" + key).value, 10), pos = arr.length;
+      if (g >= 0 && arr[g] && arr[g].g !== undefined) { pos = g + 1; while (pos < arr.length && arr[pos].g === undefined) pos++; }
+      arr.splice(pos, 0, item);
+      markCustom(); save(); build(key); render();
+      var again = $("add-name-" + key); if (again) again.focus();
+    }
+  });
+  document.addEventListener("input", function (e) { if (e.target.classList && e.target.classList.contains("err")) e.target.classList.remove("err"); });
+
+  Array.prototype.forEach.call(document.querySelectorAll(".seg button"), function (b) {
+    b.addEventListener("click", function () {
+      filter = b.getAttribute("data-f");
+      Array.prototype.forEach.call(document.querySelectorAll(".seg button"), function (x) { x.setAttribute("aria-pressed", x === b ? "true" : "false"); });
+      render();
+    });
+  });
+
+  $("reset").addEventListener("click", function () {
+    var btn = this;
+    armed(btn, "Na pewno? Kliknij ponownie", function () { state.checked = {}; save(); render(); });
+  });
+
+  // Menu ⋮
+  var menu = $("menu"), mbtn = $("menubtn");
+  function openMenu(o) { menu.hidden = !o; mbtn.setAttribute("aria-expanded", o ? "true" : "false"); }
+  mbtn.addEventListener("click", function (e) { e.stopPropagation(); openMenu(menu.hidden); });
+  document.addEventListener("click", function (e) { if (!menu.hidden && !menu.contains(e.target) && e.target !== mbtn) openMenu(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !menu.hidden) { openMenu(false); mbtn.focus(); } });
+
+  function setEditing(v) {
+    editing = v;
+    $("editbar").hidden = !v;
+    $("m-edit").textContent = v ? "Zakończ edycję" : "Edytuj listy";
+    buildAll(); render();
+    if (!v) syncNow();
+  }
+  $("editdone").addEventListener("click", function () { setEditing(false); window.scrollTo(0, 0); });
+
+  menu.addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-m]"); if (!b) return;
+    var m = b.getAttribute("data-m");
+    if (m === "edit") { openMenu(false); setEditing(!editing); }
+    else if (m === "backup") { openMenu(false); openBackup(); }
+    else if (m === "sync") { openMenu(false); openSync(); }
+    else if (m === "restore") {
+      armed(b, "Na pewno? Usunie własne zmiany listy", function () {
+        DATA = clone(DEFAULTS); state.lists = null; save(); openMenu(false); buildAll(); render();
+      });
+    }
+  });
+
+  // Eksport i import
+  var pending = null;
+  function exMode() { var r = document.querySelector('input[name="exmode"]:checked'); return r ? r.value : "all"; }
+  function payload(mode) {
+    var o = { v: 1, kind: mode, lists: DATA };
+    if (mode === "all") { o.checked = state.checked; o.exp = state.exp; o.date = state.date; }
+    return o;
+  }
+  function fileNameFor(mode) { return mode === "all" ? "r1-kopia-" + today() + ".json" : "r1-lista.json"; }
+  function say(t) { $("backup-status").textContent = t; }
+  function openBackup() {
+    var box = $("backup-box"); box.classList.add("on");
+    $("backup-text").value = JSON.stringify(payload("all"));
+    pending = null; $("imp-confirm").hidden = true; say("");
+    $("share-file").hidden = !(typeof navigator.share === "function" && typeof File === "function");
+    box.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+  $("exp-file").addEventListener("click", function () {
+    try {
+      var m = exMode(), text = JSON.stringify(payload(m), null, 1);
+      var url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+      var a = document.createElement("a"); a.href = url; a.download = fileNameFor(m);
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+      say("Zapisano plik " + fileNameFor(m) + " (sprawdź folder pobranych).");
+    } catch (err) { say("Nie udało się zapisać pliku. Użyj kopiowania tekstu poniżej."); }
+  });
+  $("share-file").addEventListener("click", function () {
+    try {
+      var m = exMode(), f = new File([JSON.stringify(payload(m), null, 1)], fileNameFor(m), { type: "application/json" });
+      if (navigator.canShare && navigator.canShare({ files: [f] })) { navigator.share({ files: [f], title: "Lista PSP R1" }).catch(function () {}); }
+      else say("Ta przeglądarka nie udostępnia plików. Użyj „Pobierz plik” i wyślij go ręcznie.");
+    } catch (err) { say("Udostępnianie nie zadziałało. Użyj „Pobierz plik”."); }
+  });
+  // Sprawdza dane i czeka na potwierdzenie, zanim cokolwiek zastąpi.
+  function stageImport(text, label) {
+    pending = null; $("imp-confirm").hidden = true;
+    try {
+      var p = JSON.parse(text);
+      if (!p || typeof p !== "object" || p.v !== 1) throw new Error("format");
+      var l = p.lists ? validLists(p.lists) : null;
+      if (p.lists && !l) throw new Error("lists");
+      if (!l && p.checked === undefined && p.exp === undefined) throw new Error("empty");
+      pending = { p: p, l: l };
+      var what = (l ? "listę pozycji" : "") + (l && p.checked !== undefined ? " oraz " : "") + (p.checked !== undefined ? "zaznaczenia i daty" : "");
+      say("Znaleziono w " + label + ": " + what + ". Wczytanie zastąpi te dane na tym urządzeniu.");
+      $("imp-confirm").hidden = false;
+    } catch (err) { say("To nie wygląda na plik z tej strony. Nic nie zmieniono."); }
+  }
+  $("imp-btn").addEventListener("click", function () { $("imp-file").click(); });
+  $("imp-file").addEventListener("change", function () {
+    var f = this.files && this.files[0], inp = this; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () { stageImport(String(rd.result), "pliku " + f.name); inp.value = ""; };
+    rd.onerror = function () { say("Nie udało się odczytać pliku."); inp.value = ""; };
+    rd.readAsText(f);
+  });
+  $("imp-confirm").addEventListener("click", function () {
+    if (!pending) return;
+    var p = pending.p, l = pending.l;
+    if (p.checked !== undefined) state.checked = obj(p.checked);
+    if (p.exp !== undefined) state.exp = obj(p.exp);
+    if (typeof p.date === "string") state.date = p.date;
+    if (l) { DATA = l; state.lists = DATA; }
+    pending = null; $("imp-confirm").hidden = true;
+    save(); buildAll(); render(); $("backup-text").value = JSON.stringify(payload("all"));
+    say("Wczytano.");
+  });
+  $("backup-copy").addEventListener("click", function () {
+    var ta = $("backup-text"); ta.value = JSON.stringify(payload(exMode()));
+    function manual() { ta.focus(); ta.select(); say("Schowek nie zadziałał. Tekst jest zaznaczony, skopiuj go ręcznie."); }
+    try { navigator.clipboard.writeText(ta.value).then(function () { say("Skopiowano."); }, manual); } catch (err) { manual(); }
+  });
+  $("backup-load").addEventListener("click", function () { stageImport($("backup-text").value, "polu tekstowym"); });
+  $("backup-close").addEventListener("click", function () { $("backup-box").classList.remove("on"); });
+
+  $("copy").addEventListener("click", function () {
+    var tdy = today(), lines = [], head = "Braki w zestawie PSP R1" + (state.date ? " (kontrola " + state.date + ")" : "");
+    [["a", "Plecak opatrunkowy"], ["o", "Plecak tlenowy"]].forEach(function (s) {
+      var rows = DATA[s[0]].filter(function (i) { return i.g === undefined && !state.checked[i.id]; });
+      if (rows.length) { lines.push(""); lines.push(s[1] + ":"); rows.forEach(function (i) { lines.push("- " + i.name + " (" + i.qty + ")"); }); }
+    });
+    var exp = DATA.a.concat(DATA.o).filter(function (i) { return i.g === undefined && expStatus(i.id, tdy) === "expired"; });
+    if (exp.length) { lines.push(""); lines.push("Przeterminowane:"); exp.forEach(function (i) { lines.push("- " + i.name + " (do " + state.exp[i.id] + ")"); }); }
+    var text = lines.length ? head + lines.join("\n") : head + "\nBrak braków.";
+    var btn = $("copy");
+    function fallback() { var box = $("missing-box"), ta = $("missing-text"); box.classList.add("on"); ta.value = text; ta.focus(); ta.select(); }
+    try {
+      navigator.clipboard.writeText(text).then(function () {
+        btn.textContent = "Skopiowano"; setTimeout(function () { btn.textContent = "Kopiuj braki"; }, 1800);
+      }, fallback);
+    } catch (err) { fallback(); }
+  });
+
+  // Przeliczanie terminów, gdy strona wraca na wierzch albo zmienia się dzień.
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) render(); });
+  window.addEventListener("focus", render);
+  window.addEventListener("pageshow", render);
+  setInterval(function () { if (today() !== lastDay) render(); }, 600000);
+
+  // Synchronizacja (Firebase Realtime Database, REST)
+  var SKEY = "psp-r1-sync-v1";
+  var sync = { url: "", name: "r1", ok: false };
+  try {
+    var sraw = localStorage.getItem(SKEY);
+    if (sraw) { var sp = JSON.parse(sraw); if (typeof sp.url === "string") sync.url = sp.url; if (typeof sp.name === "string") sync.name = sp.name; sync.ok = !!sp.ok; }
+  } catch (e) {}
+  function saveSync() { try { localStorage.setItem(SKEY, JSON.stringify(sync)); } catch (e) {} }
+  var syncBusy = false, needAgain = false, syncTimer = null, lastSync = 0, choice = null;
+  function docUrl() { return sync.url.replace(/\/+$/, "") + "/" + sync.name + ".json"; }
+  function syncSay(t) { $("sync-status").textContent = t; }
+  function pill(t, cls) { var el = $("p-sync"); el.hidden = !t; el.textContent = t || ""; el.className = "pill" + (cls ? " " + cls : ""); }
+  function hhmm() { var d = new Date(); return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0"); }
+  function req(method, body) {
+    var ctl = typeof AbortController === "function" ? new AbortController() : null;
+    var to = ctl ? setTimeout(function () { ctl.abort(); }, 12000) : null;
+    var opts = { method: method };
+    if (body !== undefined) opts.body = body;
+    if (ctl) opts.signal = ctl.signal;
+    return fetch(docUrl(), opts).then(function (r) {
+      if (to) clearTimeout(to);
+      if (!r.ok) { var er = new Error("http"); er.status = r.status; throw er; }
+      return r.json();
+    }, function (err) { if (to) clearTimeout(to); throw err; });
+  }
+  function localDoc() {
+    return JSON.stringify({ v: 1, updatedAt: state.updatedAt, data: JSON.stringify({ checked: state.checked, exp: state.exp, date: state.date, lists: state.lists }) });
+  }
+  function validRemote(doc) { return !!doc && typeof doc === "object" && doc.v === 1 && typeof doc.data === "string" && typeof doc.updatedAt === "number"; }
+  function applyRemote(doc) {
+    var d = JSON.parse(doc.data), l = d.lists ? validLists(d.lists) : null;
+    state.checked = obj(d.checked); state.exp = obj(d.exp); state.date = typeof d.date === "string" ? d.date : "";
+    if (l) { DATA = l; state.lists = DATA; } else { DATA = clone(DEFAULTS); state.lists = null; }
+    state.updatedAt = Number(doc.updatedAt) || 0;
+    save(true); buildAll(); render();
+  }
+  function done(msg) { syncSay(msg + " (" + hhmm() + ")"); pill("Chmura: OK " + hhmm()); $("sync-choice").hidden = true; }
+  function fail(err) {
+    var m;
+    if (err && (err.status === 401 || err.status === 403)) m = "Baza odrzuciła dostęp. Sprawdź reguły bazy: muszą pozwalać na odczyt i zapis.";
+    else if (err && err.status === 404) m = "Nie znaleziono bazy pod tym adresem. Sprawdź adres.";
+    else m = "Brak połączenia z chmurą. Zmiany są zapisane na urządzeniu i wyślą się później.";
+    syncSay(m); pill("Chmura: błąd", "bad");
+  }
+  function schedulePush() {
+    if (!sync.url || !sync.ok) return;
+    if (syncBusy) { needAgain = true; return; }
+    clearTimeout(syncTimer); syncTimer = setTimeout(syncNow, 1500);
+  }
+  function syncNow() {
+    if (!sync.url || !sync.ok || syncBusy) return;
+    syncBusy = true; lastSync = Date.now(); pill("Chmura: synchronizacja…");
+    req("GET").then(function (remote) {
+      if (!validRemote(remote)) return req("PUT", localDoc()).then(function () { done("Wysłano dane do chmury."); });
+      if (remote.updatedAt > state.updatedAt) {
+        if (editing) { syncSay("W chmurze są nowsze zmiany. Pobiorę je po zakończeniu edycji."); pill("Chmura: czeka", "warn"); return; }
+        applyRemote(remote); done("Pobrano nowsze dane z chmury.");
+      } else if (remote.updatedAt < state.updatedAt) {
+        return req("PUT", localDoc()).then(function () { done("Wysłano zmiany do chmury."); });
+      } else { done("Dane są aktualne."); }
+    }).catch(fail).then(function () {
+      syncBusy = false;
+      if (needAgain) { needAgain = false; schedulePush(); }
+    });
+  }
+  function autoSync() { if (Date.now() - lastSync > 10000) syncNow(); }
+  function openSync() {
+    var box = $("sync-box"); box.classList.add("on");
+    $("sync-url").value = sync.url; $("sync-name").value = sync.name;
+    try { box.scrollIntoView({ block: "start", behavior: "smooth" }); } catch (e) {}
+  }
+  $("sync-connect").addEventListener("click", function () {
+    var u = $("sync-url").value.trim().replace(/\.json$/i, "").replace(/\/+$/, "");
+    var n = $("sync-name").value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "") || "r1";
+    if (!/^https:\/\/[^\s\/]+\.[^\s\/]+/.test(u)) { syncSay("Wpisz pełny adres bazy, zaczynający się od https://"); return; }
+    if (syncBusy) { syncSay("Trwa synchronizacja. Spróbuj za chwilę."); return; }
+    sync.url = u; sync.name = n; sync.ok = false; saveSync(); choice = null;
+    $("sync-choice").hidden = true; syncSay("Łączę…"); pill("Chmura: łączenie…");
+    req("GET").then(function (remote) {
+      if (!validRemote(remote)) {
+        return req("PUT", localDoc()).then(function () { sync.ok = true; saveSync(); done("Połączono. Wysłano dane z tego urządzenia."); });
+      }
+      if (state.updatedAt === 0) { applyRemote(remote); sync.ok = true; saveSync(); done("Połączono. Pobrano dane z chmury."); return; }
+      choice = remote; $("sync-choice").hidden = false;
+      syncSay("W chmurze są już dane, a to urządzenie ma własne. Wybierz, które zachować."); pill("Chmura: wybór", "warn");
+    }).catch(fail);
+  });
+  $("sync-pull").addEventListener("click", function () {
+    if (!choice) return;
+    try { applyRemote(choice); choice = null; sync.ok = true; saveSync(); done("Pobrano dane z chmury."); } catch (err) { syncSay("Dane w chmurze są uszkodzone. Wybierz wysłanie danych z tego urządzenia."); }
+  });
+  $("sync-push").addEventListener("click", function () {
+    state.updatedAt = Date.now(); save(true); choice = null;
+    req("PUT", localDoc()).then(function () { sync.ok = true; saveSync(); done("Wysłano dane z tego urządzenia do chmury."); }).catch(fail);
+  });
+  $("sync-now").addEventListener("click", function () {
+    if (!sync.url || !sync.ok) { syncSay("Najpierw połącz z bazą."); return; }
+    if (syncBusy) { syncSay("Trwa synchronizacja."); return; }
+    syncNow();
+  });
+  $("sync-off").addEventListener("click", function () {
+    sync.url = ""; sync.ok = false; saveSync(); choice = null; $("sync-choice").hidden = true;
+    $("sync-url").value = ""; pill(""); syncSay("Rozłączono. Dane zostają na tym urządzeniu.");
+  });
+  $("sync-close").addEventListener("click", function () { $("sync-box").classList.remove("on"); });
+  function initSync() {
+    if (sync.url && sync.ok) { pill("Chmura: łączenie…"); syncNow(); }
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) autoSync(); });
+    window.addEventListener("focus", autoSync);
+    setInterval(function () { if (!document.hidden) autoSync(); }, 300000);
+  }
+
+  buildAll(); render(); initSync();
+})();
+</script>
+
+</body>
+</html>
